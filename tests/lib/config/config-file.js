@@ -120,8 +120,9 @@ describe("ConfigFile", function() {
             target = [];
         });
 
-        it("should apply extensions when specified from package", function() {
+        it("should apply extensions when specified from root directory config", function() {
 
+            // Even though config is in /whatever, it should still lookup relative to eslint directory
             target.push(path.resolve("./node_modules/eslint-config-foo/index.js"));
 
             var configDeps = {
@@ -152,6 +153,37 @@ describe("ConfigFile", function() {
                 globals: {},
                 rules: { eqeqeq: 2 }
             });
+
+        });
+
+        it("should throw an error when extends config is not found", function() {
+
+            // Even though config is in /whatever, it should still lookup relative to eslint directory
+            // So this file should not be found
+            target.push(path.resolve("/whatever/node_modules/eslint-config-foo/index.js"));
+
+            var configDeps = {
+                // Hacky: need to override isFile for each call for testing
+                "resolve": {
+                    sync: function(filename, opts) {
+                        opts.isFile = getFileCheck();
+                        return resolve.sync(filename, opts);
+                    }
+                }
+            };
+
+            configDeps[target[0]] = {
+                env: { browser: true }
+            };
+
+            var StubbedConfigFile = proxyquire("../../../lib/config/config-file", configDeps);
+
+            assert.throws(function() {
+                StubbedConfigFile.applyExtends({
+                    extends: "foo",
+                    rules: { eqeqeq: 2 }
+                }, "/whatever");
+            }, /Cannot find module 'eslint-config-foo'/);
 
         });
 
